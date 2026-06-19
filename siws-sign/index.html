@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+<body>
+<script>
+  (function () {
+    var params = new URLSearchParams(window.location.search);
+    var msgB64 = params.get('msg');   // base64url-encoded SIWS message
+    var envParam = params.get('env'); // 'prod' | 'dev'
+    var appScheme = (envParam === 'prod') ? 'ample://' : 'ample.dev://';
+
+    function done(qs) {
+      window.location.replace(appScheme + 'phantom-siws?' + qs);
+    }
+
+    if (!msgB64) { done('error=no_message'); return; }
+
+    // base64url → standard base64 → decode
+    var b64 = msgB64.replace(/-/g, '+').replace(/_/g, '/');
+    while (b64.length % 4) b64 += '=';
+    var message;
+    try { message = atob(b64); } catch (e) { done('error=bad_encoding'); return; }
+
+    var msgBytes = new TextEncoder().encode(message);
+
+    (async function () {
+      try {
+        var p = (window.phantom && window.phantom.solana) || window.solana;
+        if (!p) { done('error=no_provider'); return; }
+
+        // connect first (idempotent if already connected; silent if dapp is trusted)
+        await p.connect();
+
+        var result = await p.signMessage(msgBytes, 'utf8');
+
+        // encode signature as hex — no external libraries needed
+        var hex = Array.from(result.signature)
+          .map(function (b) { return b.toString(16).padStart(2, '0'); })
+          .join('');
+
+        done('sig=' + encodeURIComponent(hex));
+      } catch (e) {
+        done('error=' + encodeURIComponent(e.message || 'sign_failed'));
+      }
+    })();
+  })();
+</script>
+</body>
+</html>
