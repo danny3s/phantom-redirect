@@ -3,50 +3,85 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #fff; color: #1a1a1a;
+      min-height: 100vh; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; padding: 32px 24px;
+      text-align: center;
+    }
+    #status { font-size: 16px; color: #555; margin: 16px 0 32px; line-height: 1.5; }
+    #returnBtn {
+      display: none;
+      padding: 16px 32px; background: #ab9ff2; color: #fff;
+      border-radius: 14px; font-size: 17px; font-weight: 600;
+      text-decoration: none; letter-spacing: -0.3px;
+    }
+  </style>
 </head>
 <body>
-<script>
-  (function () {
-    var params = new URLSearchParams(window.location.search);
-    var msgB64 = params.get('msg');   // base64url-encoded SIWS message
-    var envParam = params.get('env'); // 'prod' | 'dev'
-    var appScheme = (envParam === 'prod') ? 'ample://' : 'ample.dev://';
+  <p id="status">Connecting to Phantom…</p>
+  <a id="returnBtn" href="#">Return to Ample</a>
+  <script>
+    (function () {
+      var params = new URLSearchParams(window.location.search);
+      var msgB64  = params.get('msg');
+      var envParam = params.get('env');
+      var appScheme = (envParam === 'prod') ? 'ample://' : 'ample.dev://';
 
-    function done(qs) {
-      window.location.replace(appScheme + 'phantom-siws?' + qs);
-    }
+      var statusEl  = document.getElementById('status');
+      var returnBtn = document.getElementById('returnBtn');
 
-    if (!msgB64) { done('error=no_message'); return; }
+      function done(qs) {
+        var url = appScheme + 'phantom-siws?' + qs;
 
-    // base64url → standard base64 → decode
-    var b64 = msgB64.replace(/-/g, '+').replace(/_/g, '/');
-    while (b64.length % 4) b64 += '=';
-    var message;
-    try { message = atob(b64); } catch (e) { done('error=bad_encoding'); return; }
+        // Show the button first — a real user tap is the most reliable
+        // way to trigger navigation to a custom scheme inside WKWebView.
+        returnBtn.href = url;
+        returnBtn.style.display = 'inline-block';
+        statusEl.textContent = 'Signed! Tap below to return to Ample.';
 
-    var msgBytes = new TextEncoder().encode(message);
-
-    (async function () {
-      try {
-        var p = (window.phantom && window.phantom.solana) || window.solana;
-        if (!p) { done('error=no_provider'); return; }
-
-        // connect first (idempotent if already connected; silent if dapp is trusted)
-        await p.connect();
-
-        var result = await p.signMessage(msgBytes, 'utf8');
-
-        // encode signature as hex — no external libraries needed
-        var hex = Array.from(result.signature)
-          .map(function (b) { return b.toString(16).padStart(2, '0'); })
-          .join('');
-
-        done('sig=' + encodeURIComponent(hex));
-      } catch (e) {
-        done('error=' + encodeURIComponent(e.message || 'sign_failed'));
+        // Also attempt automatic redirect; may work depending on how
+        // Phantom configures its WKNavigationDelegate.
+        try { window.location.replace(url); } catch (e) {}
+        try { window.location.href = url; } catch (e) {}
       }
+
+      if (!msgB64) { done('error=no_message'); return; }
+
+      // base64url → standard base64 → decode
+      var b64 = msgB64.replace(/-/g, '+').replace(/_/g, '/');
+      while (b64.length % 4) b64 += '=';
+      var message;
+      try { message = atob(b64); } catch (e) { done('error=bad_encoding'); return; }
+
+      var msgBytes = new TextEncoder().encode(message);
+
+      (async function () {
+        try {
+          var p = (window.phantom && window.phantom.solana) || window.solana;
+          if (!p) { done('error=no_provider'); return; }
+
+          statusEl.textContent = 'Connecting…';
+          await p.connect();
+
+          statusEl.textContent = 'Please sign the message in Phantom…';
+          var result = await p.signMessage(msgBytes, 'utf8');
+
+          // encode as hex — no external lib needed
+          var hex = Array.from(result.signature)
+            .map(function (b) { return b.toString(16).padStart(2, '0'); })
+            .join('');
+
+          done('sig=' + encodeURIComponent(hex));
+        } catch (e) {
+          var msg = (e && e.message) ? e.message : 'Unknown error';
+          statusEl.textContent = 'Error: ' + msg + '. Please go back and try again.';
+        }
+      })();
     })();
-  })();
-</script>
+  </script>
 </body>
 </html>
