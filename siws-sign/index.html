@@ -12,73 +12,75 @@
       align-items: center; justify-content: center; padding: 32px 24px;
       text-align: center;
     }
-    #status { font-size: 16px; color: #555; margin: 16px 0 32px; line-height: 1.5; }
-    #returnBtn {
-      display: none;
-      padding: 16px 32px; background: #ab9ff2; color: #fff;
-      border-radius: 14px; font-size: 17px; font-weight: 600;
-      text-decoration: none; letter-spacing: -0.3px;
-    }
+    #icon   { font-size: 48px; margin-bottom: 16px; }
+    #status { font-size: 16px; color: #555; line-height: 1.5; }
   </style>
 </head>
 <body>
+  <div id="icon">✍️</div>
   <p id="status">Connecting to Phantom…</p>
-  <a id="returnBtn" href="#">Return to Ample</a>
   <script>
     (function () {
-      var params = new URLSearchParams(window.location.search);
-      var msgB64  = params.get('msg');
-      var envParam = params.get('env');
-      var appScheme = (envParam === 'prod') ? 'ample://' : 'ample.dev://';
-
+      var params    = new URLSearchParams(window.location.search);
+      var msgB64    = params.get('msg');
+      var sessionId = params.get('sessionId');
       var statusEl  = document.getElementById('status');
-      var returnBtn = document.getElementById('returnBtn');
+      var iconEl    = document.getElementById('icon');
 
-      function done(qs) {
-        var url = appScheme + 'phantom-siws?' + qs;
-
-        // Show the button first — a real user tap is the most reliable
-        // way to trigger navigation to a custom scheme inside WKWebView.
-        returnBtn.href = url;
-        returnBtn.style.display = 'inline-block';
-        statusEl.textContent = 'Signed! Tap below to return to Ample.';
-
-        // Also attempt automatic redirect; may work depending on how
-        // Phantom configures its WKNavigationDelegate.
-        try { window.location.replace(url); } catch (e) {}
-        try { window.location.href = url; } catch (e) {}
+      function showError(msg) {
+        iconEl.textContent = '❌';
+        statusEl.textContent = msg + ' Please close this window and try again.';
       }
 
-      if (!msgB64) { done('error=no_message'); return; }
+      if (!msgB64)    { showError('Missing message parameter.');  return; }
+      if (!sessionId) { showError('Missing session parameter.');  return; }
 
       // base64url → standard base64 → decode
       var b64 = msgB64.replace(/-/g, '+').replace(/_/g, '/');
       while (b64.length % 4) b64 += '=';
       var message;
-      try { message = atob(b64); } catch (e) { done('error=bad_encoding'); return; }
+      try { message = atob(b64); } catch (e) { showError('Bad message encoding.'); return; }
 
       var msgBytes = new TextEncoder().encode(message);
 
       (async function () {
         try {
           var p = (window.phantom && window.phantom.solana) || window.solana;
-          if (!p) { done('error=no_provider'); return; }
+          if (!p) { showError('Phantom provider not found.'); return; }
 
-          statusEl.textContent = 'Connecting…';
+          statusEl.textContent = 'Connecting to wallet…';
           await p.connect();
 
-          statusEl.textContent = 'Please sign the message in Phantom…';
+          statusEl.textContent = 'Please approve the sign request in Phantom…';
           var result = await p.signMessage(msgBytes, 'utf8');
 
-          // encode as hex — no external lib needed
-          var hex = Array.from(result.signature)
+          // encode signature as hex — no external lib needed
+          var sigHex = Array.from(result.signature)
             .map(function (b) { return b.toString(16).padStart(2, '0'); })
             .join('');
 
-          done('sig=' + encodeURIComponent(hex));
+          statusEl.textContent = 'Sending signature…';
+
+          // POST the hex sig to ntfy.sh using the sessionId as the topic.
+          // The Ample app polls this topic until it receives the message.
+          var resp = await fetch('https://ntfy.sh/' + sessionId, {
+            method: 'POST',
+            body: sigHex,
+          });
+
+          if (resp.ok) {
+            iconEl.textContent = '✅';
+            statusEl.textContent = 'Done! You can close Phantom and return to Ample.';
+          } else {
+            showError('Relay error (' + resp.status + ').');
+          }
         } catch (e) {
-          var msg = (e && e.message) ? e.message : 'Unknown error';
-          statusEl.textContent = 'Error: ' + msg + '. Please go back and try again.';
+          var msg = (e && e.message) ? e.message : String(e);
+          if (msg.toLowerCase().includes('user rejected') || msg.toLowerCase().includes('cancel')) {
+            showError('Signing cancelled.');
+          } else {
+            showError('Error: ' + msg + '.');
+          }
         }
       })();
     })();
