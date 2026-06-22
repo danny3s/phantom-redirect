@@ -45,8 +45,27 @@
 
       (async function () {
         try {
-          var p = (window.phantom && window.phantom.solana) || window.solana;
-          if (!p) { showError('Phantom provider not found.'); return; }
+          // Phantom's in-app browser may inject the provider after page load.
+          // Poll for up to 3s before giving up.
+          var p = null;
+          for (var i = 0; i < 30; i++) {
+            p = (window.phantom && window.phantom.solana) || window.solana;
+            if (p) break;
+            await new Promise(function (r) { setTimeout(r, 100); });
+          }
+          if (!p) {
+            var ua = navigator.userAgent || '(no ua)';
+            var href = window.location.href || '(no href)';
+            // POST diagnostic info to ntfy so we can see it in the app logs.
+            try {
+              await fetch('https://ntfy.sh/' + sessionId, {
+                method: 'POST',
+                body: 'DEBUG_NO_PROVIDER|ua=' + ua + '|href=' + href,
+              });
+            } catch (_) {}
+            showError('Phantom provider not found. UA: ' + ua.substring(0, 80));
+            return;
+          }
 
           statusEl.textContent = 'Connecting to wallet…';
           await p.connect();
