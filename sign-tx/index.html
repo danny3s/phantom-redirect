@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Approve transaction · Ample</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --background: #ffffff;
+      --foreground: #1a1a1a;
+      --muted-foreground: #717179;
+      --border: #ececec;
+      --card: #ffffff;
+      --green-base: #199b61;
+      --solana-primary: #7a64bc;
+      --destructive: #e5484d;
+      --radius: 0.625rem;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body {
+      font-family: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--background);
+      color: var(--foreground);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+    }
+
+    .card {
+      width: 100%;
+      max-width: 380px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: calc(var(--radius) + 6px);
+      padding: 40px 32px;
+      text-align: center;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 8px 24px rgba(0, 0, 0, 0.06);
+    }
+
+    .logo { display: inline-flex; margin-bottom: 28px; }
+    .logo svg { display: block; }
+
+    .indicator {
+      width: 64px;
+      height: 64px;
+      margin: 0 auto 20px;
+      border-radius: 9999px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #f4f3f8;
+    }
+    .indicator.is-error   { background: #fdecec; }
+    .indicator.is-success { background: #e7f5ee; }
+
+    .spinner {
+      width: 28px;
+      height: 28px;
+      border: 3px solid #e2def0;
+      border-top-color: var(--solana-primary);
+      border-radius: 9999px;
+      animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .glyph { width: 30px; height: 30px; display: none; }
+    .indicator.is-error .spinner,
+    .indicator.is-success .spinner { display: none; }
+    .indicator.is-error .glyph.error,
+    .indicator.is-success .glyph.success { display: block; }
+
+    #title {
+      font-size: 18px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      margin-bottom: 8px;
+    }
+
+    #status {
+      font-size: 14.5px;
+      line-height: 1.55;
+      color: var(--muted-foreground);
+    }
+
+    .footer {
+      margin-top: 28px;
+      padding-top: 18px;
+      border-top: 1px solid var(--border);
+      font-size: 12px;
+      color: var(--muted-foreground);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+    .footer .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 9999px;
+      background: var(--solana-primary);
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --background: #0a0a0a;
+        --foreground: #fafafa;
+        --muted-foreground: #a1a1aa;
+        --border: rgba(255, 255, 255, 0.1);
+        --card: #161616;
+      }
+      .indicator           { background: #1d1b24; }
+      .indicator.is-error  { background: #2a1717; }
+      .indicator.is-success{ background: #142a1e; }
+      .spinner             { border-color: #2e2a3a; border-top-color: var(--solana-primary); }
+      .card { box-shadow: 0 1px 2px rgba(0,0,0,0.4), 0 8px 24px rgba(0,0,0,0.5); }
+    }
+  </style>
+</head>
+<body>
+  <div class="card" role="status" aria-live="polite">
+    <span class="logo" aria-label="Ample">
+      <svg width="44" height="24" viewBox="0 0 44 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M5.50781 12.9834C6.26324 12.9834 6.98323 13.1349 7.63867 13.4102C7.52698 13.9717 7.46778 14.5521 7.46777 15.1465C7.46789 17.6279 8.48993 19.8694 10.1348 21.4766C9.15381 22.9937 7.44893 23.999 5.50781 23.999C2.46589 23.999 0.000102055 21.5331 0 18.4912C0 15.4492 2.46583 12.9834 5.50781 12.9834ZM31.2812 0C37.9081 0.000228316 43.28 5.37218 43.2803 11.999C43.2803 18.6261 37.9082 23.9988 31.2812 23.999C28.1326 23.999 25.2685 22.7846 23.1279 20.8008C24.4032 19.2671 25.1718 17.2968 25.1719 15.1465C25.1718 11.6783 23.1754 8.67776 20.2705 7.22559C22.1164 2.97411 26.3509 0 31.2812 0ZM16.3193 6.29395C17.7397 6.29408 19.0809 6.63088 20.2705 7.22559C19.6353 8.68867 19.2813 10.3023 19.2812 11.999C19.2812 15.4776 20.7631 18.6091 23.1279 20.8008C21.5041 22.7536 19.0574 23.9978 16.3193 23.998C13.9121 23.998 11.7304 23.0357 10.1348 21.4766C10.691 20.6162 11.0156 19.592 11.0156 18.4912C11.0156 16.2047 9.62254 14.2432 7.63867 13.4102C8.44568 9.35279 12.0249 6.29407 16.3193 6.29395Z" fill="#199B61"/>
+      </svg>
+    </span>
+
+    <div class="indicator" id="indicator">
+      <div class="spinner"></div>
+      <svg class="glyph success" viewBox="0 0 24 24" fill="none" stroke="#199b61" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M20 6 9 17l-5-5"/>
+      </svg>
+      <svg class="glyph error" viewBox="0 0 24 24" fill="none" stroke="#e5484d" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M18 6 6 18M6 6l12 12"/>
+      </svg>
+    </div>
+
+    <h1 id="title">Approve transaction</h1>
+    <p id="status">Loading…</p>
+
+    <div class="footer">
+      <span class="dot"></span>
+      <span>Secured by Phantom</span>
+    </div>
+  </div>
+
+  <script type="module">
+    // Phantom in-app browser supports ES modules. esm.sh ships @solana/web3.js
+    // as a single bundle, no install step needed for this static page.
+    import { VersionedTransaction } from 'https://esm.sh/@solana/web3.js@1.95.4';
+
+    const params    = new URLSearchParams(window.location.search);
+    const txB64Url  = params.get('tx');
+    const sessionId = params.get('sessionId');
+    const statusEl  = document.getElementById('status');
+    const titleEl   = document.getElementById('title');
+    const indicator = document.getElementById('indicator');
+
+    function showError(msg) {
+      indicator.className = 'indicator is-error';
+      titleEl.textContent = 'Something went wrong';
+      statusEl.textContent = msg + ' Please close this window and try again.';
+    }
+
+    function showSuccess() {
+      indicator.className = 'indicator is-success';
+      titleEl.textContent = 'Approved';
+      statusEl.textContent = 'Done! You can close Phantom and return to Ample.';
+    }
+
+    if (!txB64Url)  { showError('Missing transaction parameter.'); throw new Error('no tx'); }
+    if (!sessionId) { showError('Missing session parameter.');     throw new Error('no session'); }
+
+    // Restrict the ntfy topic to a safe charset before building the relay URL.
+    if (!/^[A-Za-z0-9_-]+$/.test(sessionId)) {
+      showError('Invalid session parameter.');
+      throw new Error('bad sessionId');
+    }
+    const relayUrl = 'https://ntfy.sh/' + encodeURIComponent(sessionId);
+
+    // base64url → standard base64 → bytes
+    let txBytes;
+    try {
+      let b64 = txB64Url.replace(/-/g, '+').replace(/_/g, '/');
+      while (b64.length % 4) b64 += '=';
+      const bin = atob(b64);
+      txBytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) txBytes[i] = bin.charCodeAt(i);
+    } catch (e) {
+      showError('Bad transaction encoding.');
+      throw e;
+    }
+
+    (async () => {
+      try {
+        statusEl.textContent = 'Connecting to Phantom…';
+
+        // Phantom may inject the provider after page load.
+        let p = null;
+        for (let i = 0; i < 30; i++) {
+          p = (window.phantom && window.phantom.solana) || window.solana;
+          if (p) break;
+          await new Promise(r => setTimeout(r, 100));
+        }
+        if (!p) {
+          const ua = navigator.userAgent || '(no ua)';
+          try {
+            await fetch(relayUrl, { method: 'POST', body: 'DEBUG_NO_PROVIDER|ua=' + ua });
+          } catch (_) {}
+          showError('Phantom provider not found. UA: ' + ua.substring(0, 80));
+          return;
+        }
+
+        await p.connect();
+
+        // Deserialize the versioned transaction sent by the mobile app.
+        const tx = VersionedTransaction.deserialize(txBytes);
+
+        statusEl.textContent = 'Please approve the transaction in Phantom…';
+
+        // signAndSendTransaction broadcasts to the current cluster Phantom is
+        // pointed at and returns the signature. We expect Phantom on mainnet.
+        // result shape: { signature: <base58 string>, publicKey: <string> }
+        const result = await p.signAndSendTransaction(tx);
+        const signature = (result && (result.signature || result)) + '';
+
+        if (!signature || signature.length < 32) {
+          throw new Error('No signature returned from Phantom');
+        }
+
+        statusEl.textContent = 'Sending signature…';
+
+        // POST the signature (already base58, no encoding work needed) to
+        // the ntfy.sh topic the mobile app is polling.
+        const resp = await fetch(relayUrl, { method: 'POST', body: signature });
+        if (resp.ok) {
+          showSuccess();
+        } else {
+          showError('Relay error (' + resp.status + ').');
+        }
+      } catch (e) {
+        const msg = (e && e.message) ? e.message : String(e);
+        if (msg.toLowerCase().includes('user rejected') || msg.toLowerCase().includes('cancel')) {
+          showError('Transaction cancelled.');
+        } else {
+          showError('Error: ' + msg + '.');
+        }
+        // Diagnostic POST so the mobile app's polling sees something other than
+        // a 5-minute timeout when the page itself failed.
+        try {
+          await fetch(relayUrl, { method: 'POST', body: 'PAGE_ERROR|' + msg.slice(0, 120) });
+        } catch (_) {}
+      }
+    })();
+  </script>
+</body>
+</html>
